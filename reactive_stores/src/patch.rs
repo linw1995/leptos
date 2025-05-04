@@ -1,6 +1,12 @@
 use crate::{path::StorePath, StoreField};
 use itertools::{EitherOrBoth, Itertools};
-use reactive_graph::traits::{Notify, UntrackableGuard};
+use reactive_graph::{
+    signal::{
+        ArcReadSignal, ArcRwSignal, ArcWriteSignal, ReadSignal, RwSignal,
+        WriteSignal,
+    },
+    traits::{Notify, UntrackableGuard},
+};
 use std::{
     borrow::Cow,
     net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6},
@@ -193,6 +199,35 @@ where
             }
         }
     }
+}
+
+macro_rules! patch_generics {
+    ($($ty:ident < $($gen:ident),+ > ),+ $(,)?) => {
+        $(
+            impl<$($gen),+> PatchField for $ty<$($gen),+> {
+                fn patch_field(
+                    &mut self,
+                    new: Self,
+                    path: &StorePath,
+                    notify: &mut dyn FnMut(&StorePath),
+                ) {
+                    if new != *self {
+                        *self = new;
+                        notify(path);
+                    }
+                }
+            }
+        )*
+    };
+}
+
+patch_generics! {
+    ArcRwSignal<T>,
+    ArcReadSignal<T>,
+    ArcWriteSignal<T>,
+    RwSignal<T, S>,
+    ReadSignal<T, S>,
+    WriteSignal<T, S>,
 }
 
 macro_rules! patch_tuple {
